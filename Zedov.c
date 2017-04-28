@@ -15,11 +15,11 @@
 #define dely 2.0
 #define delz 2.0
 #define T 300.0
-#define E 10
+#define E 1.0
 #define RHO 1.0
-#define P_ATM 1.0
+#define P_ATM 0.00001
 #define core 63
-#define TIME 0.0
+#define TIME 0.33
 
 #define deltax 0.1
 #define deltay 0.1
@@ -45,6 +45,8 @@ FLOAT ENER;
 
 FLOAT rad;
 FILE *rad_dat, *dens_dat;
+FLOAT * U_halfs;
+FLOAT * F_halfs;
 
 int i, j, k, m;
 
@@ -72,6 +74,7 @@ void fromUtoRho(U_grid *U);
 FLOAT eterm(FLOAT temp);
 FLOAT vterm(FLOAT temp);
 void evolve(U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz);
+void printCORE(physics_grid *P, U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz);
 
 //------------------Main----------------
 int main(){
@@ -86,7 +89,9 @@ int main(){
 
   init_problem(P_state, U_state, Fx_state, Fy_state, Fz_state);
   init_zedov(P_state, U_state, Fx_state, Fy_state, Fz_state);
+  //printCORE(P_state, U_state, Fx_state, Fy_state, Fz_state);
   evolve(U_state, Fx_state, Fy_state, Fz_state);
+  //printCORE(P_state, U_state, Fx_state, Fy_state, Fz_state);
   fromUtoRho(U_state);
 
   return 0;
@@ -209,17 +214,6 @@ void init_problem(physics_grid *P, U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz
 void init_zedov(physics_grid *P, U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz){
   VEL=vterm(T);
   ENER=eterm(T);
-  /*P->P[ndx(core,core,core, P->N_x, P->N_y, 3)]=P_atm;
-  P->P[ndx(core,core,core, P->N_x, P->N_y, 4)]=dens;
-
-  U->U[ndx(core,core,core, U->N_x, U->N_y, 0)]=dens;
-  U->U[ndx(core,core,core, U->N_x, U->N_y, 4)]=dens*E;
-
-  Fx->F[ndx(core,core,core, Fx->N_x, Fx->N_y, 1)]=P_atm;
-
-  Fy->F[ndx(core,core,core, Fy->N_x, Fy->N_y, 2)]=P_atm;
-
-  Fz->F[ndx(core,core,core, Fz->N_x, Fz->N_y, 3)]=P_atm;*/
 
   for(i=0;i<Nx;i++){
     for(j=0;j<Ny;j++){
@@ -259,7 +253,8 @@ void init_zedov(physics_grid *P, U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz){
 
   U->U[ndx(core,core,core,Nx,Ny,4)]=RHO*E;
 
-  FLOAT pt=presion(U->U[ndx(core,core,core,Nx,Ny,0)], U->U[ndx(core,core,core,Nx,Ny,1)], U->U[ndx(core,core,core,Nx,Ny,2)], U->U[ndx(core,core,core,Nx,Ny,3)], U->U[ndx(core,core,core,Nx,Ny,4)]);
+  //FLOAT pt=presion(U->U[ndx(core,core,core,Nx,Ny,0)], U->U[ndx(core,core,core,Nx,Ny,1)], U->U[ndx(core,core,core,Nx,Ny,2)], U->U[ndx(core,core,core,Nx,Ny,3)], U->U[ndx(core,core,core,Nx,Ny,4)]);
+  FLOAT pt=750.0;
   P->P[ndx(core,core,core,Nx,Ny,3)]=pt;
 
   Fx->F[ndx(core,core,core,Nx,Ny,1)]=RHO*pow(VEL,2)+pt;
@@ -279,9 +274,6 @@ int ndx(int i, int j, int k, FLOAT length, FLOAT height, int cube){
 }
 void update(U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz, FLOAT delt){
 
-  FLOAT * U_halfs;
-  FLOAT * F_halfs;
-
   U_halfs=malloc(sizeof(FLOAT)*2*NDIM*(NDIM+2));
   F_halfs=malloc(sizeof(FLOAT)*2*NDIM*(NDIM+2));
 
@@ -289,10 +281,7 @@ void update(U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz, FLOAT delt){
     for(j=0;j<Ny;j++){
       for(k=0;k<Nz;k++){
         for(m=0;m<(NDIM+2);m++){
-          if (i==0 || j==0 || k==0 || i==(Nx-1) || j==(Ny-1) || k==(Nz-1)){
-            U->U[ndx(i, j, k, Nx, Ny, m)]=U->U[ndx(i, j, k, Nx, Ny, m)];
-          }
-          else{
+          if (!(i==0 || j==0 || k==0 || i==(Nx-1) || j==(Ny-1) || k==(Nz-1))){
             U_halfs[0+m*(2*NDIM)]=(U->U[ndx(i-1,j,k,Nx,Ny,m)]+U->U[ndx(i,j,k,Nx,Ny,m)])*0.5;
             U_halfs[1+m*(2*NDIM)]=(U->U[ndx(i,j,k,Nx,Ny,m)]+U->U[ndx(i+1,j,k,Nx,Ny,m)])*0.5;
             U_halfs[2+m*(2*NDIM)]=(U->U[ndx(i,j-1,k,Nx,Ny,m)]+U->U[ndx(i,j,k,Nx,Ny,m)])*0.5;
@@ -301,16 +290,20 @@ void update(U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz, FLOAT delt){
             U_halfs[5+m*(2*NDIM)]=(U->U[ndx(i,j,k,Nx,Ny,m)]+U->U[ndx(i,j,k+1,Nx,Ny,m)])*0.5;
           }
         }
-        for(m=0;m<(NDIM+2);m++){
-          F_halfs[0+m*(2*NDIM)]=fromU2Fx(U_halfs[0], U_halfs[6], U_halfs[12], U_halfs[18], U_halfs[24], m);
-          F_halfs[1+m*(2*NDIM)]=fromU2Fx(U_halfs[1], U_halfs[7], U_halfs[13], U_halfs[19], U_halfs[25], m);
-          F_halfs[2+m*(2*NDIM)]=fromU2Fy(U_halfs[2], U_halfs[8], U_halfs[14], U_halfs[20], U_halfs[26], m);
-          F_halfs[3+m*(2*NDIM)]=fromU2Fy(U_halfs[3], U_halfs[9], U_halfs[15], U_halfs[21], U_halfs[27], m);
-          F_halfs[4+m*(2*NDIM)]=fromU2Fz(U_halfs[4], U_halfs[10], U_halfs[16], U_halfs[22], U_halfs[28], m);
-          F_halfs[5+m*(2*NDIM)]=fromU2Fz(U_halfs[5], U_halfs[11], U_halfs[17], U_halfs[23], U_halfs[29], m);
+        if (!(i==0 || j==0 || k==0 || i==(Nx-1) || j==(Ny-1) || k==(Nz-1))){
+          for(m=0;m<(NDIM+2);m++){
+            F_halfs[0+m*(2*NDIM)]=fromU2Fx(U_halfs[0], U_halfs[6], U_halfs[12], U_halfs[18], U_halfs[24], m);
+            F_halfs[1+m*(2*NDIM)]=fromU2Fx(U_halfs[1], U_halfs[7], U_halfs[13], U_halfs[19], U_halfs[25], m);
+            F_halfs[2+m*(2*NDIM)]=fromU2Fy(U_halfs[2], U_halfs[8], U_halfs[14], U_halfs[20], U_halfs[26], m);
+            F_halfs[3+m*(2*NDIM)]=fromU2Fy(U_halfs[3], U_halfs[9], U_halfs[15], U_halfs[21], U_halfs[27], m);
+            F_halfs[4+m*(2*NDIM)]=fromU2Fz(U_halfs[4], U_halfs[10], U_halfs[16], U_halfs[22], U_halfs[28], m);
+            F_halfs[5+m*(2*NDIM)]=fromU2Fz(U_halfs[5], U_halfs[11], U_halfs[17], U_halfs[23], U_halfs[29], m);
+          }
         }
-        for(m=0;m<(NDIM+2);m++){
-          U->U[ndx(i,j,k,Nx,Ny,m)]=U->U[ndx(i,j,k,Nx,Ny,m)]+delt/deltax*(F_halfs[0+m*(2*NDIM)]-F_halfs[1+m*(2*NDIM)])+delt/deltay*(F_halfs[2+m*(2*NDIM)]-F_halfs[3+m*(2*NDIM)])+delt/deltaz*(F_halfs[4+m*(2*NDIM)]-F_halfs[5+m*(2*NDIM)]);
+        if (!(i==0 || j==0 || k==0 || i==(Nx-1) || j==(Ny-1) || k==(Nz-1))){
+          for(m=0;m<(NDIM+2);m++){
+            U->U[ndx(i,j,k,Nx,Ny,m)]=U->U[ndx(i,j,k,Nx,Ny,m)]+(delt/deltax)*(F_halfs[0+m*(2*NDIM)]-F_halfs[1+m*(2*NDIM)])+(delt/deltay)*(F_halfs[2+m*(2*NDIM)]-F_halfs[3+m*(2*NDIM)])+(delt/deltaz)*(F_halfs[4+m*(2*NDIM)]-F_halfs[5+m*(2*NDIM)]);
+          }
         }
       }
     }
@@ -334,7 +327,7 @@ FLOAT fromU2Fx(FLOAT u0, FLOAT u1, FLOAT u2, FLOAT u3, FLOAT u4, int m){
   }
   else{
     FLOAT P=presion(u0, u1, u2, u3, u4);
-    return u4+P*u1/u0;
+    return u4*u1/u0+P*u1/u0;
   }
 }
 FLOAT fromU2Fy(FLOAT u0, FLOAT u1, FLOAT u2, FLOAT u3, FLOAT u4, int m){
@@ -353,7 +346,7 @@ FLOAT fromU2Fy(FLOAT u0, FLOAT u1, FLOAT u2, FLOAT u3, FLOAT u4, int m){
   }
   else{
     FLOAT P=presion(u0, u1, u2, u3, u4);
-    return u4+P*u2/u0;
+    return u4*u2/u0+P*u2/u0;
   }
 }
 FLOAT fromU2Fz(FLOAT u0, FLOAT u1, FLOAT u2, FLOAT u3, FLOAT u4, int m){
@@ -372,7 +365,7 @@ FLOAT fromU2Fz(FLOAT u0, FLOAT u1, FLOAT u2, FLOAT u3, FLOAT u4, int m){
   }
   else{
     FLOAT P=presion(u0, u1, u2, u3, u4);
-    return u4+P*u3/u0;
+    return u4*u3/u0+P*u3/u0;
   }
 }
 FLOAT presion(FLOAT u0, FLOAT u1, FLOAT u2, FLOAT u3, FLOAT u4){
@@ -386,6 +379,11 @@ FLOAT t_step(U_grid *U){
         ener=U->U[ndx(i,j,k,Nx,Ny,4)]/U->U[ndx(i,j,k,Nx,Ny,0)];
         pres=presion(U->U[ndx(i,j,k,Nx,Ny,0)], U->U[ndx(i,j,k,Nx,Ny,1)], U->U[ndx(i,j,k,Nx,Ny,2)], U->U[ndx(i,j,k,Nx,Ny,3)], U->U[ndx(i,j,k,Nx,Ny,4)]);
         entalpia=ener+pres/U->U[ndx(i,j,k,Nx,Ny,0)];
+        /*if(isnan(ener))
+        {
+          printf("%d \n",i);
+        }*/
+        //printf("%f %f %f %f \n", ener, pres, entalpia, U->U[ndx(i,j,k,Nx,Ny,0)]);
         v_sound=pow((GAM-1)*entalpia,0.5);
         v_temp=fabs(U->U[ndx(i,j,k,Nx,Ny,1)]/U->U[ndx(i,j,k,Nx,Ny,0)])+v_sound;
         if(v_temp > v_max){
@@ -419,16 +417,24 @@ void fromUtoRho(U_grid *U){
   }
 }
 FLOAT vterm(FLOAT temp){
-  return 1.0;
+  return 0.0;
 }
 FLOAT eterm(FLOAT temp){
-  return 1.0;
+  return 0.0;
 }
 void evolve(U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz){
   FLOAT tiempo=0.0;
   while(tiempo<TIME){
-    deltat=t_step(U);
+    deltat=0.01; //t_step(U);
+    //printf("%f \n", deltat);
     update(U, Fx, Fy, Fz, deltat);
     tiempo += deltat;
   }
+}
+void printCORE(physics_grid *P, U_grid *U, F_grid *Fx, F_grid *Fy, F_grid *Fz){
+  printf("Componentes de U: %f %f %f %f %f\n", U->U[ndx(core,core,core,Nx,Ny,0)], U->U[ndx(core,core,core,Nx,Ny,1)], U->U[ndx(core,core,core,Nx,Ny,2)], U->U[ndx(core,core,core,Nx,Ny,3)], U->U[ndx(core,core,core,Nx,Ny,4)]);
+  printf("Componentes de P: %f %f %f %f %f\n", P->P[ndx(core,core,core,Nx,Ny,0)], P->P[ndx(core,core,core,Nx,Ny,1)], P->P[ndx(core,core,core,Nx,Ny,2)], P->P[ndx(core,core,core,Nx,Ny,3)], P->P[ndx(core,core,core,Nx,Ny,4)]);
+  printf("Componentes de Fx: %f %f %f %f %f\n", Fx->F[ndx(core,core,core,Nx,Ny,0)], Fx->F[ndx(core,core,core,Nx,Ny,1)], Fx->F[ndx(core,core,core,Nx,Ny,2)], Fx->F[ndx(core,core,core,Nx,Ny,3)], Fx->F[ndx(core,core,core,Nx,Ny,4)]);
+  printf("Componentes de Fy: %f %f %f %f %f\n", Fy->F[ndx(core,core,core,Nx,Ny,0)], Fy->F[ndx(core,core,core,Nx,Ny,1)], Fy->F[ndx(core,core,core,Nx,Ny,2)], Fy->F[ndx(core,core,core,Nx,Ny,3)], Fy->F[ndx(core,core,core,Nx,Ny,4)]);
+  printf("Componentes de Fz: %f %f %f %f %f\n", Fz->F[ndx(core,core,core,Nx,Ny,0)], Fz->F[ndx(core,core,core,Nx,Ny,1)], Fz->F[ndx(core,core,core,Nx,Ny,2)], Fz->F[ndx(core,core,core,Nx,Ny,3)], Fz->F[ndx(core,core,core,Nx,Ny,4)]);
 }
