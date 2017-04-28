@@ -4,7 +4,7 @@
 #define STAR 1
 #define NO_STAR 0
 
-#define T 0.2
+#define T 0.25
 #define CFL 0.5
 #define X0 0.5
 #define RL 1.0
