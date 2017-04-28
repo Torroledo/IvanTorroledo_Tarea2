@@ -16,7 +16,7 @@ for r in rads:
 
 fig=plt.figure()
 plt.plot(rads,dens)
-plt.xlabel(r'Radio al centro de la explosión ($r$)')
+plt.xlabel(r'Radio al centro de la explosion ($r$)')
 plt.ylabel(r'Densidad ($\rho$)')
 plt.title('Densidad radial de la explosion - Sedov')
 plt.savefig('DensidadSedov.pdf', fomat='pdf')
