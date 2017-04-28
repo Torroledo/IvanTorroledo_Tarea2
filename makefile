@@ -12,7 +12,7 @@ plotshock: shock
 	python plotShock.py
 
 plotsedov: sedov
-		python plotSedov.py
+	python plotSedov.py
 
 shock: shock.x
 	./shock.x
