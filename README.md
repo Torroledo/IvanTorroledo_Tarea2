@@ -1,9 +1,9 @@
 # Euler Equations 
 Repository for the solution of Advanced Computational Methods Homowerk.
 
-  Sebastian Franco  
-  Mateo 
-  Ivan Torroledo 
+- Sebastian Franco  
+- Mateo 
+- Ivan Torroledo 
 
 ---
 1. Sod Problem - Shock Tube 
