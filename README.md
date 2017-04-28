@@ -1,4 +1,9 @@
 # Euler Equations 
+Repository for the solution of Advanced Computational Methods Homowerk.
+
+  Sebastian Franco  
+  Mateo 
+  Ivan Torroledo 
 
 ---
 1. Sod Problem - Shock Tube 
@@ -18,4 +23,3 @@ to make plots:
 make plotshock
 make plotsedov
 ```
-Repository for the solution of Advanced Computational Methods Homowerk.
