@@ -9,10 +9,10 @@ OBJS_SEDOV = structSedov.o Zedov.o
 INCL_SEDOV = Makefile structSedov.h
 
 plotshock: shock
-	python plotshock.py
+	python plotShock.py
 
 plotsedov: sedov
-		python plotsedov.py
+		python plotSedov.py
 
 shock: shock.x
 	./shock.x
